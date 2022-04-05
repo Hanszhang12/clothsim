@@ -33,6 +33,65 @@ Cloth::~Cloth() {
 void Cloth::buildGrid() {
   // TODO (Part 1): Build a grid of masses and springs.
 
+  if (this->orientation == HORIZONTAL) {
+    for (int x = 0; x < num_width_points; x++) {
+      for (int y = 0; y < num_height_points; y++) {
+        Vector3D pos = Vector3D(x, 1, y);
+        bool pin;
+        for (vector<int>& pm : this->pinned) {
+          if (pm[0] != pos[0] && pm[1] != pos[1]) {
+            pin = false;
+          } else {
+            pin = true;
+          }
+        }
+        PointMass newPM = PointMass(pos, pin);
+        this->point_masses.emplace_back(newPM);
+      }
+    }
+  } else if (this->orientation == VERTICAL){
+    for (int x = 0; x < num_width_points; x++) {
+      for (int y = 0; y < num_height_points; y++) {
+        int offset = rand() % 2000;
+        offset -= 1000;
+        double new_offset = 1/(double) offset;
+        Vector3D pos = Vector3D(x, y, new_offset);
+        bool pin;
+        for (vector<int>& pm : this->pinned) {
+          if (pm[0] != pos[0] && pm[1] != pos[1]) {
+            pin = false;
+          } else {
+            pin = true;
+          }
+        }
+        PointMass newPM = PointMass(pos, pin);
+        this->point_masses.emplace_back(newPM);
+      }
+    }
+  }
+
+  //structural constraint
+  for (int x = 0; x < num_width_points - 1; x++) {
+    for (int y = 0; y < num_height_points - 1; y++) {
+      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 0);
+      this->springs.emplace_back(new_spring);
+    }
+  }
+
+  for (int x = 0; x < num_width_points - 1; x++) {
+    for (int y = 0; y < num_height_points - 1; y++) {
+      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 1);
+      this->springs.emplace_back(new_spring);
+    }
+  }
+
+  for (int x = 0; x < num_width_points - 1; x++) {
+    for (int y = 0; y < num_height_points - 1; y++) {
+      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 2);
+      this->springs.emplace_back(new_spring);
+    }
+  }
+
 }
 
 void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParameters *cp,
@@ -76,7 +135,7 @@ void Cloth::self_collide(PointMass &pm, double simulation_steps) {
 float Cloth::hash_position(Vector3D pos) {
   // TODO (Part 4): Hash a 3D position into a unique float identifier that represents membership in some 3D box volume.
 
-  return 0.f; 
+  return 0.f;
 }
 
 ///////////////////////////////////////////////////////
@@ -116,7 +175,7 @@ void Cloth::buildClothMesh() {
        * pm_C -------- pm_D   *
        *                      *
        */
-      
+
       float u_min = x;
       u_min /= num_width_points - 1;
       float u_max = x + 1;
@@ -125,22 +184,22 @@ void Cloth::buildClothMesh() {
       v_min /= num_height_points - 1;
       float v_max = y + 1;
       v_max /= num_height_points - 1;
-      
+
       PointMass *pm_A = pm                       ;
       PointMass *pm_B = pm                    + 1;
       PointMass *pm_C = pm + num_width_points    ;
       PointMass *pm_D = pm + num_width_points + 1;
-      
+
       Vector3D uv_A = Vector3D(u_min, v_min, 0);
       Vector3D uv_B = Vector3D(u_max, v_min, 0);
       Vector3D uv_C = Vector3D(u_min, v_max, 0);
       Vector3D uv_D = Vector3D(u_max, v_max, 0);
-      
-      
+
+
       // Both triangles defined by vertices in counter-clockwise orientation
-      triangles.push_back(new Triangle(pm_A, pm_C, pm_B, 
+      triangles.push_back(new Triangle(pm_A, pm_C, pm_B,
                                        uv_A, uv_C, uv_B));
-      triangles.push_back(new Triangle(pm_B, pm_C, pm_D, 
+      triangles.push_back(new Triangle(pm_B, pm_C, pm_D,
                                        uv_B, uv_C, uv_D));
     }
   }
