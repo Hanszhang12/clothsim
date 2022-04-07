@@ -34,8 +34,8 @@ void Cloth::buildGrid() {
   // TODO (Part 1): Build a grid of masses and springs.
 
   if (this->orientation == HORIZONTAL) {
-    for (int x = 0; x < num_width_points; x++) {
-      for (int y = 0; y < num_height_points; y++) {
+    for (int y = 0; y < num_height_points; y++) {
+      for (int x = 0; x < num_width_points; x++) {
         Vector3D pos = Vector3D(x, 1, y);
         bool pin;
         for (vector<int>& pm : this->pinned) {
@@ -50,8 +50,8 @@ void Cloth::buildGrid() {
       }
     }
   } else if (this->orientation == VERTICAL){
-    for (int x = 0; x < num_width_points; x++) {
-      for (int y = 0; y < num_height_points; y++) {
+    for (int y = 0; y < num_height_points; y++) {
+      for (int x = 0; x < num_width_points; x++) {
         int offset = rand() % 2000;
         offset -= 1000;
         double new_offset = 1/(double) offset;
@@ -71,24 +71,63 @@ void Cloth::buildGrid() {
   }
 
   //structural constraint
-  for (int x = 0; x < num_width_points - 1; x++) {
-    for (int y = 0; y < num_height_points - 1; y++) {
-      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 0);
+  for (int y = 1; y < num_height_points; y++) {
+    Spring new_spring = Spring(&this->point_masses[(y - 1) * num_width_points ], &this->point_masses[(y) * num_width_points], STRUCTURAL);
+    this->springs.emplace_back(new_spring);
+  }
+  for (int x = 1; x < num_width_points; x++) {
+    Spring new_spring = Spring(&this->point_masses[x-1], &this->point_masses[x], STRUCTURAL);
+    this->springs.emplace_back(new_spring);
+  }
+
+  for (int y = 1; y < num_height_points; y++) {
+    for (int x = 1; x < num_width_points; x++) {
+      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x - 1], &this->point_masses[(y) * num_width_points + x], STRUCTURAL);
+      Spring new_spring2 = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[(y - 1) * num_width_points + x], STRUCTURAL);
+
       this->springs.emplace_back(new_spring);
+      this->springs.emplace_back(new_spring2);
+
     }
   }
 
-  for (int x = 0; x < num_width_points - 1; x++) {
-    for (int y = 0; y < num_height_points - 1; y++) {
-      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 1);
+  for (int y = 1; y < num_height_points; y++) {
+    Spring new_spring = Spring(&this->point_masses[(y - 1) * num_width_points + 0 + 1], &this->point_masses[(y) * num_width_points + 0], SHEARING);
+    this->springs.emplace_back(new_spring);
+  }
+  for (int y = 1; y < num_height_points; y++) {
+    Spring new_spring = Spring(&this->point_masses[(y - 1) * num_width_points + num_width_points - 1 - 1], &this->point_masses[(y) * num_width_points + num_width_points - 1], SHEARING);
+    this->springs.emplace_back(new_spring);
+  }
+
+  for (int y = 1; y < num_height_points; y++) {
+    for (int x = 1; x < num_width_points - 1; x++) {
+      Spring new_spring = Spring(&this->point_masses[(y - 1) * num_width_points + x - 1], &this->point_masses[(y) * num_width_points + x], SHEARING);
+      Spring new_spring2 = Spring(&this->point_masses[(y ) * num_width_points + x], &this->point_masses[(y - 1) * num_width_points + x + 1], SHEARING);
+
       this->springs.emplace_back(new_spring);
+      this->springs.emplace_back(new_spring2);
+
     }
   }
 
-  for (int x = 0; x < num_width_points - 1; x++) {
-    for (int y = 0; y < num_height_points - 1; y++) {
-      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[y * num_width_points + x + 1], 2);
+  for (int y = 2; y < num_height_points; y++) {
+    Spring new_spring = Spring(&this->point_masses[(y - 2) * num_width_points ], &this->point_masses[(y) * num_width_points], BENDING);
+    this->springs.emplace_back(new_spring);
+  }
+  for (int x = 2; x < num_width_points; x++) {
+    Spring new_spring = Spring(&this->point_masses[x-2], &this->point_masses[x], BENDING);
+    this->springs.emplace_back(new_spring);
+  }
+
+  for (int y = 2; y < num_height_points; y++) {
+    for (int x = 2; x < num_width_points; x++) {
+      Spring new_spring = Spring(&this->point_masses[y * num_width_points + x - 2], &this->point_masses[(y) * num_width_points + x], BENDING);
+      Spring new_spring2 = Spring(&this->point_masses[y * num_width_points + x], &this->point_masses[(y-2) * num_width_points + x], BENDING);
+
       this->springs.emplace_back(new_spring);
+      this->springs.emplace_back(new_spring2);
+
     }
   }
 
