@@ -36,35 +36,36 @@ void Cloth::buildGrid() {
   if (this->orientation == HORIZONTAL) {
     for (int y = 0; y < num_height_points; y++) {
       for (int x = 0; x < num_width_points; x++) {
-        Vector3D pos = Vector3D(x, 1, y);
-        bool pin;
-        for (vector<int>& pm : this->pinned) {
-          if (pm[0] != pos[0] && pm[1] != pos[1]) {
-            pin = false;
-          } else {
+        Vector3D pos = Vector3D((double)(x * width) / num_width_points, 1, (double)(y * height) / num_height_points);
+
+        bool pin = false;
+        for (int i = 0; i < pinned.size(); i++) {
+          vector<int> test = {x, y};
+          if (pinned[i] == test) {
             pin = true;
           }
         }
         PointMass newPM = PointMass(pos, pin);
+        // newPM.last_position = pos;
         this->point_masses.emplace_back(newPM);
       }
     }
   } else if (this->orientation == VERTICAL){
     for (int y = 0; y < num_height_points; y++) {
       for (int x = 0; x < num_width_points; x++) {
-        int offset = rand() % 2000;
-        offset -= 1000;
-        double new_offset = 1/(double) offset;
-        Vector3D pos = Vector3D(x, y, new_offset);
-        bool pin;
-        for (vector<int>& pm : this->pinned) {
-          if (pm[0] != pos[0] && pm[1] != pos[1]) {
-            pin = false;
-          } else {
+
+        double new_offset = ((rand() * 1.0f / RAND_MAX) * 2 - 1) / 1000.0f;
+        Vector3D pos = Vector3D((double)(x * width) / num_width_points, (double)(y * height) / num_height_points, new_offset);
+        bool pin = false;
+        for (int i = 0; i < pinned.size(); i++) {
+          vector<int> test = {x, y};
+          if (pinned[i] == test) {
             pin = true;
           }
         }
         PointMass newPM = PointMass(pos, pin);
+        // newPM.last_position = pos;
+
         this->point_masses.emplace_back(newPM);
       }
     }
@@ -140,34 +141,51 @@ void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParame
   double delta_t = 1.0f / frames_per_sec / simulation_steps;
 
   // TODO (Part 2): Compute total force acting on each point mass.
-  Vector3D total_external_acceleration = Vector3D(0,0,0);
+  Vector3D total_external_forces = Vector3D(0,0,0);
+
   for(Vector3D acceleration: external_accelerations) {
-    total_external_acceleration += mass * acceleration;
+    total_external_forces += Vector3D(mass * acceleration[0], mass * acceleration[1],mass * acceleration[2]);
+
+  }
+
+  for (PointMass& pm : this->point_masses) {
+    pm.forces = Vector3D(0,0,0);
   }
   for (PointMass& pm : this->point_masses) {
-    pm.forces = total_external_acceleration;
+    pm.forces += total_external_forces;
   }
 
   for (Spring& spr: this->springs) {
-    if (spr.spring_type == STRUCTURAL && cp->enable_structural_constraints) {
-      Vector3D pos_diff = Vector3D(sqrt(pow((spr.pm_a->position[0] - spr.pm_b->position[0]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)));
-      Vector3D spring_force = cp->ks * (pos_diff - spr.rest_length);
-      spr.pm_a->forces += spring_force;
-      spr.pm_b->forces -= spring_force;
-    } else if (spr.spring_type == SHEARING && cp->enable_shearing_constraints) {
-      Vector3D pos_diff = Vector3D(sqrt(pow((spr.pm_a->position[0] - spr.pm_b->position[0]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)));
-      Vector3D spring_force = cp->ks * (pos_diff - spr.rest_length);
-      spr.pm_a->forces += spring_force;
-      spr.pm_b->forces -= spring_force;
+    if ((spr.spring_type == STRUCTURAL && cp->enable_structural_constraints) || (spr.spring_type == SHEARING && cp->enable_shearing_constraints)) {
+      Vector3D pos_diff = spr.pm_a->position - spr.pm_b->position;
+
+      Vector3D spring_force = cp->ks * (pos_diff.norm() - spr.rest_length);
+
+      spr.pm_a->forces -= spring_force;
+      spr.pm_b->forces += spring_force;
+
     } else if (spr.spring_type == BENDING && cp->enable_bending_constraints) {
-      Vector3D pos_diff = Vector3D(sqrt(pow((spr.pm_a->position[0] - spr.pm_b->position[0]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)), sqrt(pow((spr.pm_a->position[1] - spr.pm_b->position[1]),2)));
-      Vector3D spring_force = cp->ks * 0.2 * (pos_diff - spr.rest_length);
-      spr.pm_a->forces += spring_force;
-      spr.pm_b->forces -= spring_force;
+      Vector3D pos_diff = spr.pm_a->position - spr.pm_b->position;
+
+      Vector3D spring_force = cp->ks * 0.2 * (pos_diff.norm() - spr.rest_length);
+
+      spr.pm_a->forces -= spring_force;
+      spr.pm_b->forces += spring_force;
     }
   }
 
   // TODO (Part 2): Use Verlet integration to compute new point mass positions
+  for (PointMass& pm : this->point_masses) {
+    if (!pm.pinned) {
+      Vector3D temp_pos = pm.position;
+      Vector3D new_position = pm.position + (1 - cp->damping/100) * (pm.position - pm.last_position ) + (pm.forces/mass) * pow(delta_t, 2);
+      pm.position = new_position;
+      pm.last_position = temp_pos;
+
+    }
+  }
+
+  //2.3
 
 
   // TODO (Part 4): Handle self-collisions.
