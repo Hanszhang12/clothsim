@@ -224,7 +224,7 @@ void Cloth::build_spatial_map() {
   for (PointMass &p : point_masses) {
     float h = hash_position(p.position);
     if (map.end() == map.find(h)) {
-      vector<PointMass*> empty = new vector<PointMass*>()
+      vector<PointMass*> *empty = new vector<PointMass*>();
       map.emplace(h, empty);
     }
     map[h]->emplace_back(&p);
@@ -235,26 +235,22 @@ void Cloth::self_collide(PointMass &pm, double simulation_steps) {
   // TODO (Part 4): Handle self-collision for a given point mass.
   //initialize variables
   float hkey = hash_position(pm.position);
-  vector<PointMass *> candidates = map[hkey];
+  vector<PointMass *> *candidates = map[hkey];
   Vector3D correct = Vector3D(0, 0, 0);
-  int curr = 0, i = 0;
-  while (i < candidates.size()) {
-    cand = candidates[i];
+  int curr = 0;
+  for (PointMass *cand : *candidates) {
     if (cand == &pm) {
       continue;
     }
     Vector3D dir = (pm.position - cand->position);
-    double distance = dir.norm() - (2 * thickness);
-    if (distance <= 0) {
-      dir.normalize();
-      correct += ((-distance) * dir);
+    double check = dir.norm() - (2 * thickness);
+    if (check <= 0) {
+      correct += (dir.unit() * (2 * thickness - dir.norm()));
       curr++;
     }
-    i++;
   }
   if (curr > 0) {
-    Vector3D Fcorrect = correct / (curr * simulation_steps);
-    pm.position += Fcorrect;
+    pm.position += correct / (curr * simulation_steps);
   }
 }
 
