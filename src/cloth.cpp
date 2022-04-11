@@ -184,7 +184,10 @@ void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParame
 
 
   // TODO (Part 4): Handle self-collisions.
-
+  build_spatial_map();
+  for (PointMass &p : point_masses) {
+    self_collide(p, simulation_steps);
+  }
 
   // TODO (Part 3): Handle collisions with other primitives.
   for (PointMass& pm: this->point_masses) {
@@ -192,6 +195,7 @@ void Cloth::simulate(double frames_per_sec, double simulation_steps, ClothParame
       c_o->collide(pm);
     }
   }
+
 
   // TODO (Part 2): Constrain the changes to be such that the spring does not change
   // in length more than 10% per timestep [Provot 1995].
@@ -216,20 +220,50 @@ void Cloth::build_spatial_map() {
     delete(entry.second);
   }
   map.clear();
-
   // TODO (Part 4): Build a spatial map out of all of the point masses.
-
+  for (PointMass &p : point_masses) {
+    float h = hash_position(p.position);
+    if (map.end() == map.find(h)) {
+      vector<PointMass*> empty = new vector<PointMass*>()
+      map.emplace(h, empty);
+    }
+    map[h]->emplace_back(&p);
+  }
 }
 
 void Cloth::self_collide(PointMass &pm, double simulation_steps) {
   // TODO (Part 4): Handle self-collision for a given point mass.
-
+  //initialize variables
+  float hkey = hash_position(pm.position);
+  vector<PointMass *> candidates = map[hkey];
+  Vector3D correct = Vector3D(0, 0, 0);
+  int curr = 0, i = 0;
+  while (i < candidates.size()) {
+    cand = candidates[i];
+    if (cand == &pm) {
+      continue;
+    }
+    Vector3D dir = (pm.position - cand->position);
+    double distance = dir.norm() - (2 * thickness);
+    if (distance <= 0) {
+      dir.normalize();
+      correct += ((-distance) * dir);
+      curr++;
+    }
+    i++;
+  }
+  if (curr > 0) {
+    Vector3D Fcorrect = correct / (curr * simulation_steps);
+    pm.position += Fcorrect;
+  }
 }
 
 float Cloth::hash_position(Vector3D pos) {
   // TODO (Part 4): Hash a 3D position into a unique float identifier that represents membership in some 3D box volume.
-
-  return 0.f;
+  float w = 3.0 * width / num_width_points, h = 3.0 * height / num_height_points, t = max(w, h);
+  float x = floor(pos.x / w), y = floor(pos.y / h), z = floor(pos.z / t);
+  float prime = 71;
+  return (((x * prime) + y) * prime) + z;
 }
 
 ///////////////////////////////////////////////////////
